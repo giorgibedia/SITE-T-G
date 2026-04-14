@@ -281,11 +281,12 @@ export default function App() {
     if (!videoRef.current) return;
     
     try {
+      const isMobile = window.innerWidth < 768;
       // Request lower resolution for better FPS on mobile/desktop
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 }, 
+          width: isMobile ? { ideal: 360 } : { ideal: 640 }, 
+          height: isMobile ? { ideal: 480 } : { ideal: 480 }, 
           facingMode: { ideal: 'user' }
         } 
       });
@@ -357,8 +358,11 @@ export default function App() {
   const renderLoop = (timestamp: number) => {
     if (!videoRef.current || !canvasRef.current || !imageSegmenter || !handLandmarker || !faceLandmarker) return;
 
-    // Throttle to ~24 FPS (every ~41ms) to prevent device overheating and lag
-    if (timestamp - lastFrameTimeRef.current < 41) {
+    const isMobile = window.innerWidth < 768;
+    const throttleMs = isMobile ? 66 : 41; // ~15 FPS mobile, ~24 FPS desktop
+
+    // Throttle to prevent device overheating and lag
+    if (timestamp - lastFrameTimeRef.current < throttleMs) {
       requestRef.current = requestAnimationFrame(renderLoop);
       return;
     }
@@ -366,7 +370,8 @@ export default function App() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // CRITICAL: Removed willReadFrequently: true to re-enable GPU acceleration
+    const ctx = canvas.getContext('2d'); 
     
     if (!ctx || video.paused || video.ended) {
       requestRef.current = requestAnimationFrame(renderLoop);
@@ -1686,6 +1691,12 @@ export default function App() {
       imageSegmenter.segmentForVideo(video, startTimeMs, (result) => {
         if (result.confidenceMasks && result.confidenceMasks.length >= 2) {
           processFrame(result.confidenceMasks);
+          // CRITICAL FIX: Free WebGL texture memory to prevent massive lag and crashes
+          result.confidenceMasks.forEach((mask: any) => {
+            if (mask && typeof mask.close === 'function') {
+              mask.close();
+            }
+          });
         } else {
           processFrame();
         }
@@ -1815,7 +1826,7 @@ export default function App() {
         </div>
 
         {/* Category Tabs (Compact & Wrapped for easy access) */}
-        <div className="grid grid-cols-3 gap-2 p-4 border-b border-fuchsia-500/20 shrink-0">
+        <div className="grid grid-cols-4 gap-2 p-4 border-b border-fuchsia-500/20 shrink-0">
           {[
             { id: 'characters', icon: '🎭', label: 'Characters' },
             { id: 'backgrounds', icon: '🖼️', label: 'Backgrounds' },
@@ -1823,6 +1834,8 @@ export default function App() {
             { id: 'memes', icon: '😂', label: 'Memes' },
             { id: 'accessories', icon: '🕶️', label: 'Accessories' },
             { id: 'makeup', icon: '💄', label: 'Makeup' },
+            { id: 'nails', icon: '💅', label: 'Nails' },
+            { id: 'clothes', icon: '👕', label: 'Clothes' },
           ].map(cat => (
             <button
               key={cat.id}
@@ -1936,6 +1949,46 @@ export default function App() {
                 >
                   <div className="text-2xl">{item.value === 'none' ? '🚫' : item.value === 'blush' ? '😊' : item.value === 'eyeshadow' ? '👁️' : item.value === 'lipstick' ? '👄' : '🤡'}</div>
                   <span className="text-[9px] font-bold uppercase tracking-wider text-center">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeCategory === 'nails' && (
+            <div className="grid grid-cols-4 gap-3">
+              {NAIL_COLORS.map(color => (
+                <button
+                  key={color.value}
+                  onClick={() => setSelectedNailColor(color.value)}
+                  className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${selectedNailColor === color.value ? 'bg-pink-500/20 border border-pink-500/50' : 'hover:bg-white/5 border border-transparent'}`}
+                >
+                  <div 
+                    className="w-8 h-8 rounded-full border border-white/20"
+                    style={{ backgroundColor: color.value === 'transparent' ? '#222' : color.value }}
+                  >
+                    {color.value === 'transparent' && <div className="w-full h-full flex items-center justify-center text-xs">🚫</div>}
+                  </div>
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-center">{color.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeCategory === 'clothes' && (
+            <div className="grid grid-cols-4 gap-3">
+              {TSHIRTS.map(color => (
+                <button
+                  key={color.value}
+                  onClick={() => setSelectedTshirt(color.value)}
+                  className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${selectedTshirt === color.value ? 'bg-emerald-500/20 border border-emerald-500/50' : 'hover:bg-white/5 border border-transparent'}`}
+                >
+                  <div 
+                    className="w-8 h-8 rounded-full border border-white/20"
+                    style={{ backgroundColor: color.value === 'transparent' ? '#222' : color.value }}
+                  >
+                    {color.value === 'transparent' && <div className="w-full h-full flex items-center justify-center text-xs">🚫</div>}
+                  </div>
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-center">{color.name}</span>
                 </button>
               ))}
             </div>

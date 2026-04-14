@@ -1682,7 +1682,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col items-center justify-center p-4 overflow-hidden">
+    <div className="min-h-[100dvh] bg-[#0a0a0a] text-white font-sans flex flex-col items-center justify-center p-4 overflow-hidden">
       {/* Top Bar */}
       <div className="w-full max-w-4xl mb-6 flex flex-col md:flex-row items-center md:items-end justify-between gap-6 md:gap-0 px-6 py-4 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/5 shadow-xl">
         <div className="flex flex-col items-center md:items-start text-center md:text-left">
@@ -1800,8 +1800,8 @@ export default function App() {
           </button>
         </div>
 
-        {/* Category Tabs (Compact) */}
-        <div className="flex overflow-x-auto gap-2 p-4 border-b border-fuchsia-500/20 shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Category Tabs (Compact & Wrapped for easy access) */}
+        <div className="grid grid-cols-3 gap-2 p-4 border-b border-fuchsia-500/20 shrink-0">
           {[
             { id: 'characters', icon: '🎭', label: 'Characters' },
             { id: 'backgrounds', icon: '🖼️', label: 'Backgrounds' },
@@ -1813,10 +1813,10 @@ export default function App() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex flex-col items-center gap-1 min-w-[60px] p-2 rounded-xl transition-all ${activeCategory === cat.id ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/80 hover:bg-white/5'}`}
+              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all ${activeCategory === cat.id ? 'bg-fuchsia-500/20 border border-fuchsia-500/50 text-white shadow-[0_0_10px_rgba(217,70,239,0.2)]' : 'bg-white/5 border border-transparent text-white/50 hover:text-white hover:bg-white/10'}`}
             >
               <span className="text-xl">{cat.icon}</span>
-              <span className="text-[9px] font-bold uppercase tracking-wider">{cat.label}</span>
+              <span className="text-[8px] font-bold uppercase tracking-wider text-center">{cat.label}</span>
             </button>
           ))}
         </div>

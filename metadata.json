@@ -1,0 +1,7 @@
+{
+  "name": "T&G Cam",
+  "description": "A real-time AI camera with filters, characters, and effects.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

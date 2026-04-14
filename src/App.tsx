@@ -204,6 +204,7 @@ export default function App() {
   
   const requestRef = useRef<number>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const maskCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const prevMaskRef = useRef<Float32Array | null>(null);
   const reusableImageDataRef = useRef<ImageData | null>(null);
   const bgImagesRef = useRef<Record<string, HTMLImageElement>>({});
@@ -282,11 +283,11 @@ export default function App() {
     
     try {
       const isMobile = window.innerWidth < 768;
-      // Request lower resolution for better FPS on mobile/desktop
+      // Request high resolution for better quality
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: isMobile ? { ideal: 360 } : { ideal: 640 }, 
-          height: isMobile ? { ideal: 480 } : { ideal: 480 }, 
+          width: isMobile ? { ideal: 720 } : { ideal: 1280 }, 
+          height: isMobile ? { ideal: 1280 } : { ideal: 720 }, 
           facingMode: { ideal: 'user' }
         } 
       });
@@ -358,16 +359,6 @@ export default function App() {
   const renderLoop = (timestamp: number) => {
     if (!videoRef.current || !canvasRef.current || !imageSegmenter || !handLandmarker || !faceLandmarker) return;
 
-    const isMobile = window.innerWidth < 768;
-    const throttleMs = isMobile ? 66 : 41; // ~15 FPS mobile, ~24 FPS desktop
-
-    // Throttle to prevent device overheating and lag
-    if (timestamp - lastFrameTimeRef.current < throttleMs) {
-      requestRef.current = requestAnimationFrame(renderLoop);
-      return;
-    }
-    lastFrameTimeRef.current = timestamp;
-
     const video = videoRef.current;
     const canvas = canvasRef.current;
     // CRITICAL: Removed willReadFrequently: true to re-enable GPU acceleration
@@ -389,6 +380,7 @@ export default function App() {
         }
         maskCanvasRef.current.width = video.videoWidth;
         maskCanvasRef.current.height = video.videoHeight;
+        maskCtxRef.current = maskCanvasRef.current.getContext('2d', { willReadFrequently: true });
         prevMaskRef.current = null;
         reusableImageDataRef.current = new ImageData(video.videoWidth, video.videoHeight);
       }
@@ -420,7 +412,7 @@ export default function App() {
       if (selectedBgColor !== 'transparent' && bgMask) {
         const bgData = bgMask.getAsFloat32Array();
         const maskCanvas = maskCanvasRef.current!;
-        const maskCtx = maskCanvas.getContext('2d')!;
+        const maskCtx = maskCtxRef.current!;
         const imageData = reusableImageDataRef.current!;
         const data32 = new Uint32Array(imageData.data.buffer);
         
@@ -464,7 +456,7 @@ export default function App() {
       if (selectedTshirt !== 'transparent' && clothesMask) {
         const clothesData = clothesMask.getAsFloat32Array();
         const maskCanvas = maskCanvasRef.current!;
-        const maskCtx = maskCanvas.getContext('2d')!;
+        const maskCtx = maskCtxRef.current!;
         const imageData = reusableImageDataRef.current!;
         const data32 = new Uint32Array(imageData.data.buffer);
         
@@ -492,7 +484,7 @@ export default function App() {
 
       if (selectedColor !== 'transparent' && hairMask) {
         const maskCanvas = maskCanvasRef.current!;
-        const maskCtx = maskCanvas.getContext('2d')!;
+        const maskCtx = maskCtxRef.current!;
         
         const hairData = hairMask.getAsFloat32Array();
         
@@ -532,10 +524,8 @@ export default function App() {
         maskCtx.globalCompositeOperation = 'source-over';
 
         // 5. Blend colored mask onto main canvas
-        // We use a slightly stronger blur (2px) to "dilate" the mask and catch flyaways
         ctx.save();
         ctx.globalCompositeOperation = 'soft-light';
-        ctx.filter = 'blur(2px)'; 
         ctx.drawImage(maskCanvas, 0, 0);
         ctx.restore();
       }
@@ -932,17 +922,26 @@ export default function App() {
               
               // Dark circles under eyes
               ctx.save();
-              ctx.fillStyle = 'rgba(50, 0, 0, 0.5)';
               ctx.globalCompositeOperation = 'multiply';
-              ctx.filter = 'blur(8px)';
               const leftEyeBottom = landmarks[145];
               const rightEyeBottom = landmarks[374];
-              ctx.beginPath();
-              ctx.ellipse(leftEyeBottom.x * canvas.width, leftEyeBottom.y * canvas.height + faceWidth * 0.05, faceWidth * 0.15, faceWidth * 0.08, 0, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.beginPath();
-              ctx.ellipse(rightEyeBottom.x * canvas.width, rightEyeBottom.y * canvas.height + faceWidth * 0.05, faceWidth * 0.15, faceWidth * 0.08, 0, 0, Math.PI * 2);
-              ctx.fill();
+              
+              const drawEyeBag = (center: any) => {
+                const cx = center.x * canvas.width;
+                const cy = center.y * canvas.height + faceWidth * 0.05;
+                const rx = faceWidth * 0.15;
+                const ry = faceWidth * 0.08;
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+                grad.addColorStop(0, 'rgba(50, 0, 0, 0.6)');
+                grad.addColorStop(1, 'rgba(50, 0, 0, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                ctx.fill();
+              };
+              
+              drawEyeBag(leftEyeBottom);
+              drawEyeBag(rightEyeBottom);
               ctx.restore();
               
               // Red Eyes
@@ -1063,10 +1062,16 @@ export default function App() {
               
               ctx.save();
               // Hat shadow
-              ctx.fillStyle = 'rgba(0,0,0,0.5)';
-              ctx.filter = 'blur(10px)';
+              const cx = topHead.x * canvas.width;
+              const cy = topHead.y * canvas.height + faceWidth * 0.1;
+              const rx = hatWidth / 2;
+              const ry = faceWidth * 0.2;
+              const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+              grad.addColorStop(0, 'rgba(0,0,0,0.6)');
+              grad.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.fillStyle = grad;
               ctx.beginPath();
-              ctx.ellipse(topHead.x * canvas.width, topHead.y * canvas.height + faceWidth * 0.1, hatWidth / 2, faceWidth * 0.2, 0, 0, Math.PI * 2);
+              ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
               ctx.fill();
               ctx.restore();
 
@@ -1382,10 +1387,15 @@ export default function App() {
               
               // Left Ear Blush
               ctx.save();
-              ctx.fillStyle = 'rgba(255, 100, 100, 0.3)';
-              ctx.filter = 'blur(5px)';
+              const cxL = leftEarTop.x * canvas.width - faceWidth * 0.4;
+              const cyL = leftEarTop.y * canvas.height - faceWidth * 0.5;
+              const rL = faceWidth * 0.2;
+              const gradL = ctx.createRadialGradient(cxL, cyL, 0, cxL, cyL, rL);
+              gradL.addColorStop(0, 'rgba(255, 100, 100, 0.4)');
+              gradL.addColorStop(1, 'rgba(255, 100, 100, 0)');
+              ctx.fillStyle = gradL;
               ctx.beginPath();
-              ctx.arc(leftEarTop.x * canvas.width - faceWidth * 0.4, leftEarTop.y * canvas.height - faceWidth * 0.5, faceWidth * 0.2, 0, Math.PI * 2);
+              ctx.arc(cxL, cyL, rL, 0, Math.PI * 2);
               ctx.fill();
               ctx.restore();
               
@@ -1405,10 +1415,15 @@ export default function App() {
               
               // Right Ear Blush
               ctx.save();
-              ctx.fillStyle = 'rgba(255, 100, 100, 0.3)';
-              ctx.filter = 'blur(5px)';
+              const cxR = rightEarTop.x * canvas.width + faceWidth * 0.4;
+              const cyR = rightEarTop.y * canvas.height - faceWidth * 0.5;
+              const rR = faceWidth * 0.2;
+              const gradR = ctx.createRadialGradient(cxR, cyR, 0, cxR, cyR, rR);
+              gradR.addColorStop(0, 'rgba(255, 100, 100, 0.4)');
+              gradR.addColorStop(1, 'rgba(255, 100, 100, 0)');
+              ctx.fillStyle = gradR;
               ctx.beginPath();
-              ctx.arc(rightEarTop.x * canvas.width + faceWidth * 0.4, rightEarTop.y * canvas.height - faceWidth * 0.5, faceWidth * 0.2, 0, Math.PI * 2);
+              ctx.arc(cxR, cyR, rR, 0, Math.PI * 2);
               ctx.fill();
               ctx.restore();
 

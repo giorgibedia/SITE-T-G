@@ -281,10 +281,11 @@ export default function App() {
     if (!videoRef.current) return;
     
     try {
+      // Request lower resolution for better FPS on mobile/desktop
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 }, 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 }, 
           facingMode: { ideal: 'user' }
         } 
       });
@@ -332,6 +333,9 @@ export default function App() {
     selectedTshirt,
     selectedCharacter
   });
+  
+  // Ref to throttle frames
+  const lastFrameTimeRef = useRef<number>(0);
 
   useEffect(() => {
     stateRefs.current = {
@@ -350,8 +354,15 @@ export default function App() {
     };
   }, [selectedColor, selectedNailColor, selectedBgColor, selectedBeardColor, selectedEyebrowColor, selectedBeardStyle, selectedMeme, selectedGlasses, selectedWatch, selectedMakeup, selectedTshirt, selectedCharacter]);
 
-  const renderLoop = () => {
+  const renderLoop = (timestamp: number) => {
     if (!videoRef.current || !canvasRef.current || !imageSegmenter || !handLandmarker || !faceLandmarker) return;
+
+    // Throttle to ~24 FPS (every ~41ms) to prevent device overheating and lag
+    if (timestamp - lastFrameTimeRef.current < 41) {
+      requestRef.current = requestAnimationFrame(renderLoop);
+      return;
+    }
+    lastFrameTimeRef.current = timestamp;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -408,13 +419,15 @@ export default function App() {
         const imageData = reusableImageDataRef.current!;
         const data32 = new Uint32Array(imageData.data.buffer);
         
+        // Optimize: Only process pixels if confidence is high enough
         for (let i = 0; i < bgData.length; i++) {
           const confidence = bgData[i];
-          let alpha = 0;
           if (confidence > 0.1) {
-            alpha = Math.min(255, ((confidence - 0.1) / 0.9) * 255);
+            const alpha = Math.min(255, ((confidence - 0.1) / 0.9) * 255);
+            data32[i] = (alpha << 24) | 0x00FFFFFF;
+          } else {
+            data32[i] = 0; // Transparent
           }
-          data32[i] = (alpha << 24) | 0x00FFFFFF;
         }
         maskCtx.putImageData(imageData, 0, 0);
         
@@ -452,11 +465,12 @@ export default function App() {
         
         for (let i = 0; i < clothesData.length; i++) {
           const confidence = clothesData[i];
-          let alpha = 0;
           if (confidence > 0.3) {
-            alpha = Math.min(255, ((confidence - 0.3) / 0.4) * 255);
+            const alpha = Math.min(255, ((confidence - 0.3) / 0.4) * 255);
+            data32[i] = (alpha << 24) | 0x00FFFFFF;
+          } else {
+            data32[i] = 0;
           }
-          data32[i] = (alpha << 24) | 0x00FFFFFF;
         }
         maskCtx.putImageData(imageData, 0, 0);
         
@@ -496,12 +510,12 @@ export default function App() {
           
           // Soft Alpha Ramping: Start at 30% confidence to catch fine flyaways
           // We use a wider ramp (0.3 to 0.7) for a smoother transition
-          let alpha = 0;
           if (confidence > 0.3) {
-            alpha = Math.min(255, ((confidence - 0.3) / 0.4) * 255);
+            const alpha = Math.min(255, ((confidence - 0.3) / 0.4) * 255);
+            data32[i] = (alpha << 24) | 0x00FFFFFF;
+          } else {
+            data32[i] = 0;
           }
-          
-          data32[i] = (alpha << 24) | 0x00FFFFFF;
         }
         
         maskCtx.putImageData(imageData, 0, 0);

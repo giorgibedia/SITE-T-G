@@ -184,8 +184,8 @@ export default function App() {
   const [imageSegmenter, setImageSegmenter] = useState<ImageSegmenter | null>(null);
   const [handLandmarker, setHandLandmarker] = useState<HandLandmarker | null>(null);
   const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null);
-  const [selectedColor, setSelectedColor] = useState(HAIR_COLORS[1].value);
-  const [selectedNailColor, setSelectedNailColor] = useState(NAIL_COLORS[1].value);
+  const [selectedColor, setSelectedColor] = useState(HAIR_COLORS[0].value);
+  const [selectedNailColor, setSelectedNailColor] = useState(NAIL_COLORS[0].value);
   const [selectedBgColor, setSelectedBgColor] = useState(BG_COLORS[0].value);
   const [selectedBeardColor, setSelectedBeardColor] = useState(BEARD_COLORS[0].value);
   const [selectedEyebrowColor, setSelectedEyebrowColor] = useState(EYEBROW_COLORS[0].value);

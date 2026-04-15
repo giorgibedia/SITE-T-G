@@ -13,8 +13,8 @@ try {
     Object.defineProperty(window, 'fetch', {
       configurable: true,
       enumerable: true,
-      writable: true,
-      value: originalFetch
+      get: function() { return originalFetch; },
+      set: function(val) { /* ignore MediaPipe's attempt to overwrite */ }
     });
   }
 } catch (e) {

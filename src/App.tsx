@@ -231,7 +231,7 @@ export default function App() {
         // Categories: 0-bg, 1-hair, 2-body, 3-face, 4-clothes, 5-others
         const segmenter = await ImageSegmenter.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float16/latest/selfie_multiclass_256x256.tflite",
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite",
             delegate: "GPU"
           },
           runningMode: "VIDEO",

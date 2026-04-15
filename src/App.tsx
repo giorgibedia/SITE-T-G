@@ -231,7 +231,7 @@ export default function App() {
         // Categories: 0-bg, 1-hair, 2-body, 3-face, 4-clothes, 5-others
         const segmenter = await ImageSegmenter.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite",
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float16/latest/selfie_multiclass_256x256.tflite",
             delegate: "GPU"
           },
           runningMode: "VIDEO",
@@ -282,12 +282,11 @@ export default function App() {
     if (!videoRef.current) return;
     
     try {
-      const isMobile = window.innerWidth < 768;
-      // Request high resolution for better quality
+      // Request lower resolution for better FPS on mobile/desktop
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: isMobile ? { ideal: 720 } : { ideal: 1280 }, 
-          height: isMobile ? { ideal: 1280 } : { ideal: 720 }, 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 }, 
           facingMode: { ideal: 'user' }
         } 
       });
@@ -488,25 +487,20 @@ export default function App() {
         
         const hairData = hairMask.getAsFloat32Array();
         
-        // Adjusted smoothing factor to 0.4 for a balance between responsiveness and stability
         if (!prevMaskRef.current || prevMaskRef.current.length !== hairData.length) {
           prevMaskRef.current = new Float32Array(hairData);
-        } else {
-          const smoothingFactor = 0.4;
-          for (let i = 0; i < hairData.length; i++) {
-            prevMaskRef.current[i] = (hairData[i] * smoothingFactor) + (prevMaskRef.current[i] * (1 - smoothingFactor));
-          }
         }
 
         const smoothedMask = prevMaskRef.current;
         const imageData = reusableImageDataRef.current!;
         const data32 = new Uint32Array(imageData.data.buffer);
+        const smoothingFactor = 0.4;
+        const invSmoothingFactor = 1 - smoothingFactor;
         
-        for (let i = 0; i < smoothedMask.length; i++) {
-          const confidence = smoothedMask[i];
+        for (let i = 0; i < hairData.length; i++) {
+          const confidence = (hairData[i] * smoothingFactor) + (smoothedMask[i] * invSmoothingFactor);
+          smoothedMask[i] = confidence;
           
-          // Soft Alpha Ramping: Start at 30% confidence to catch fine flyaways
-          // We use a wider ramp (0.3 to 0.7) for a smoother transition
           if (confidence > 0.3) {
             const alpha = Math.min(255, ((confidence - 0.3) / 0.4) * 255);
             data32[i] = (alpha << 24) | 0x00FFFFFF;
@@ -632,7 +626,6 @@ export default function App() {
             ctx.save();
             ctx.fillStyle = selectedBeardColor;
             ctx.globalCompositeOperation = 'soft-light';
-            ctx.filter = 'blur(4px)';
             
             const jawIndices = [132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288, 361];
             const lipIndices = [291, 375, 321, 405, 314, 17, 84, 181, 91, 146, 61];
@@ -711,7 +704,6 @@ export default function App() {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.globalCompositeOperation = 'soft-light';
-            ctx.filter = 'blur(2px)';
             
             const drawEyebrow = (connections: any[]) => {
               for (const conn of connections) {
@@ -758,9 +750,7 @@ export default function App() {
               ctx.fill();
             }
             if (selectedMakeup === 'blush') {
-              ctx.fillStyle = 'rgba(255, 105, 180, 0.3)';
               ctx.globalCompositeOperation = 'multiply';
-              ctx.filter = 'blur(10px)';
               const leftCheek = landmarks[205];
               const rightCheek = landmarks[425];
               const faceWidth = Math.sqrt(
@@ -769,13 +759,20 @@ export default function App() {
               );
               const radius = faceWidth * 0.15;
               
-              ctx.beginPath();
-              ctx.arc(leftCheek.x * canvas.width, leftCheek.y * canvas.height, radius, 0, 2 * Math.PI);
-              ctx.fill();
+              const drawBlush = (center: any) => {
+                const cx = center.x * canvas.width;
+                const cy = center.y * canvas.height;
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                grad.addColorStop(0, 'rgba(255, 105, 180, 0.4)');
+                grad.addColorStop(1, 'rgba(255, 105, 180, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+                ctx.fill();
+              };
               
-              ctx.beginPath();
-              ctx.arc(rightCheek.x * canvas.width, rightCheek.y * canvas.height, radius, 0, 2 * Math.PI);
-              ctx.fill();
+              drawBlush(leftCheek);
+              drawBlush(rightCheek);
             }
             if (selectedMakeup === 'cat_eye') {
               ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';

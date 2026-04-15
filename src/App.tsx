@@ -34,6 +34,14 @@ const HAIR_COLORS = [
   { name: 'Teal', value: '#008080' },
 ];
 
+const HAIR_STYLES = [
+  { name: 'None', value: 'none' },
+  { name: 'Afro', value: 'afro' },
+  { name: 'Spiky', value: 'spiky' },
+  { name: 'Mohawk', value: 'mohawk' },
+  { name: 'Bob', value: 'bob' },
+];
+
 const NAIL_COLORS = [
   { name: 'None', value: 'transparent' },
   { name: 'Classic Red', value: '#FF0000' },
@@ -185,6 +193,7 @@ export default function App() {
   const [handLandmarker, setHandLandmarker] = useState<HandLandmarker | null>(null);
   const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null);
   const [selectedColor, setSelectedColor] = useState(HAIR_COLORS[0].value);
+  const [selectedHairStyle, setSelectedHairStyle] = useState(HAIR_STYLES[0].value);
   const [selectedNailColor, setSelectedNailColor] = useState(NAIL_COLORS[0].value);
   const [selectedBgColor, setSelectedBgColor] = useState(BG_COLORS[0].value);
   const [selectedBeardColor, setSelectedBeardColor] = useState(BEARD_COLORS[0].value);
@@ -893,6 +902,64 @@ export default function App() {
               
               drawStar(-faceWidth * 0.22, 0, 5, faceWidth * 0.25, faceWidth * 0.1);
               drawStar(faceWidth * 0.22, 0, 5, faceWidth * 0.25, faceWidth * 0.1);
+            }
+            ctx.restore();
+          }
+
+          // 7. Hair Styles Overlay
+          if (selectedHairStyle !== 'none') {
+            const topHead = landmarks[10];
+            const leftSide = landmarks[234];
+            const rightSide = landmarks[454];
+            const faceWidth = Math.abs(rightSide.x - leftSide.x) * canvas.width;
+            const cx = topHead.x * canvas.width;
+            const cy = topHead.y * canvas.height;
+
+            ctx.save();
+            ctx.fillStyle = selectedColor !== 'transparent' ? selectedColor : '#4A3018'; // Default brown if no color
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 2;
+
+            if (selectedHairStyle === 'afro') {
+              ctx.beginPath();
+              ctx.arc(cx, cy - faceWidth * 0.2, faceWidth * 0.8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+              // Add some texture
+              ctx.fillStyle = 'rgba(0,0,0,0.1)';
+              for(let i=0; i<30; i++) {
+                ctx.beginPath();
+                ctx.arc(cx + (Math.random()-0.5)*faceWidth*1.4, cy - faceWidth*0.2 + (Math.random()-0.5)*faceWidth*1.4, faceWidth*0.15, 0, Math.PI*2);
+                ctx.fill();
+              }
+            } else if (selectedHairStyle === 'spiky') {
+              ctx.beginPath();
+              ctx.moveTo(leftSide.x * canvas.width, leftSide.y * canvas.height - faceWidth * 0.2);
+              for (let i = 0; i < 7; i++) {
+                const px = leftSide.x * canvas.width + (faceWidth * (i / 7));
+                const py = cy - faceWidth * 0.8 - (Math.random() * faceWidth * 0.5);
+                ctx.lineTo(px + faceWidth * 0.05, py);
+                ctx.lineTo(px + faceWidth * 0.15, cy - faceWidth * 0.2);
+              }
+              ctx.lineTo(rightSide.x * canvas.width, rightSide.y * canvas.height - faceWidth * 0.2);
+              ctx.fill();
+              ctx.stroke();
+            } else if (selectedHairStyle === 'mohawk') {
+              ctx.beginPath();
+              ctx.moveTo(cx - faceWidth * 0.15, cy - faceWidth * 0.1);
+              ctx.lineTo(cx - faceWidth * 0.05, cy - faceWidth * 1.5);
+              ctx.lineTo(cx + faceWidth * 0.05, cy - faceWidth * 1.5);
+              ctx.lineTo(cx + faceWidth * 0.15, cy - faceWidth * 0.1);
+              ctx.fill();
+              ctx.stroke();
+            } else if (selectedHairStyle === 'bob') {
+              ctx.beginPath();
+              ctx.moveTo(leftSide.x * canvas.width - faceWidth * 0.1, leftSide.y * canvas.height + faceWidth * 0.6);
+              ctx.quadraticCurveTo(leftSide.x * canvas.width - faceWidth * 0.3, cy - faceWidth * 0.5, cx, cy - faceWidth * 0.6);
+              ctx.quadraticCurveTo(rightSide.x * canvas.width + faceWidth * 0.3, cy - faceWidth * 0.5, rightSide.x * canvas.width + faceWidth * 0.1, rightSide.y * canvas.height + faceWidth * 0.6);
+              ctx.quadraticCurveTo(cx, cy - faceWidth * 0.2, leftSide.x * canvas.width - faceWidth * 0.1, leftSide.y * canvas.height + faceWidth * 0.6);
+              ctx.fill();
+              ctx.stroke();
             }
             ctx.restore();
           }
@@ -1899,22 +1966,43 @@ export default function App() {
           )}
 
           {activeCategory === 'hair' && (
-            <div className="grid grid-cols-4 gap-3">
-              {HAIR_COLORS.map(color => (
-                <button
-                  key={color.value}
-                  onClick={() => setSelectedColor(color.value)}
-                  className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${selectedColor === color.value ? 'bg-white/10 border border-white/30' : 'hover:bg-white/5 border border-transparent'}`}
-                >
-                  <div 
-                    className="w-8 h-8 rounded-full border border-white/20"
-                    style={{ backgroundColor: color.value === 'transparent' ? '#222' : color.value }}
-                  >
-                    {color.value === 'transparent' && <div className="w-full h-full flex items-center justify-center text-xs">🚫</div>}
-                  </div>
-                  <span className="text-[8px] font-bold uppercase tracking-wider text-center">{color.name}</span>
-                </button>
-              ))}
+            <div className="flex flex-col gap-6">
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Hair Color</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {HAIR_COLORS.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => setSelectedColor(color.value)}
+                      className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${selectedColor === color.value ? 'bg-white/10 border border-white/30' : 'hover:bg-white/5 border border-transparent'}`}
+                    >
+                      <div 
+                        className="w-8 h-8 rounded-full border border-white/20"
+                        style={{ backgroundColor: color.value === 'transparent' ? '#222' : color.value }}
+                      >
+                        {color.value === 'transparent' && <div className="w-full h-full flex items-center justify-center text-xs">🚫</div>}
+                      </div>
+                      <span className="text-[8px] font-bold uppercase tracking-wider text-center">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Hair Style</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {HAIR_STYLES.map(style => (
+                    <button
+                      key={style.value}
+                      onClick={() => setSelectedHairStyle(style.value)}
+                      className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all ${selectedHairStyle === style.value ? 'bg-fuchsia-500/20 border border-fuchsia-500/50 text-white shadow-[0_0_10px_rgba(217,70,239,0.2)]' : 'bg-white/5 border border-transparent text-white/50 hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <span className="text-2xl">{style.value === 'none' ? '🚫' : style.value === 'afro' ? '☁️' : style.value === 'spiky' ? '⚡' : style.value === 'mohawk' ? '🎸' : '💇‍♀️'}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-center">{style.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

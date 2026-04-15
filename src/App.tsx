@@ -350,6 +350,7 @@ export default function App() {
   useEffect(() => {
     stateRefs.current = {
       selectedColor,
+      selectedHairStyle,
       selectedNailColor,
       selectedBgColor,
       selectedBeardColor,
@@ -362,7 +363,7 @@ export default function App() {
       selectedTshirt,
       selectedCharacter
     };
-  }, [selectedColor, selectedNailColor, selectedBgColor, selectedBeardColor, selectedEyebrowColor, selectedBeardStyle, selectedMeme, selectedGlasses, selectedWatch, selectedMakeup, selectedTshirt, selectedCharacter]);
+  }, [selectedColor, selectedHairStyle, selectedNailColor, selectedBgColor, selectedBeardColor, selectedEyebrowColor, selectedBeardStyle, selectedMeme, selectedGlasses, selectedWatch, selectedMakeup, selectedTshirt, selectedCharacter]);
 
   const renderLoop = (timestamp: number) => {
     if (!videoRef.current || !canvasRef.current || !imageSegmenter || !handLandmarker || !faceLandmarker) return;
@@ -400,11 +401,11 @@ export default function App() {
     }
 
     const startTimeMs = performance.now();
-    const { selectedColor, selectedNailColor, selectedBgColor, selectedBeardColor, selectedEyebrowColor, selectedBeardStyle, selectedMeme, selectedGlasses, selectedWatch, selectedMakeup, selectedTshirt, selectedCharacter } = stateRefs.current;
+    const { selectedColor, selectedHairStyle, selectedNailColor, selectedBgColor, selectedBeardColor, selectedEyebrowColor, selectedBeardStyle, selectedMeme, selectedGlasses, selectedWatch, selectedMakeup, selectedTshirt, selectedCharacter } = stateRefs.current;
     
     const needsSegmentation = selectedColor !== 'transparent' || selectedBgColor !== 'transparent' || selectedTshirt !== 'transparent';
     const needsHand = selectedNailColor !== 'transparent' || selectedWatch !== 'none' || selectedCharacter !== 'none';
-    const needsFace = selectedBeardColor !== 'transparent' || selectedEyebrowColor !== 'transparent' || selectedMeme !== 'none' || selectedGlasses !== 'none' || selectedMakeup !== 'none' || selectedCharacter !== 'none';
+    const needsFace = selectedHairStyle !== 'none' || selectedBeardColor !== 'transparent' || selectedEyebrowColor !== 'transparent' || selectedMeme !== 'none' || selectedGlasses !== 'none' || selectedMakeup !== 'none' || selectedCharacter !== 'none';
 
     const processFrame = (confidenceMasks?: any[]) => {
       const hairMask = confidenceMasks ? confidenceMasks[1] : null;

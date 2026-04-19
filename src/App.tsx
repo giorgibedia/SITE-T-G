@@ -331,6 +331,7 @@ export default function App() {
   // Use refs for state that needs to be accessed inside the render loop without triggering re-renders
   const stateRefs = useRef({
     selectedColor,
+    selectedHairStyle,
     selectedNailColor,
     selectedBgColor,
     selectedBeardColor,
@@ -627,7 +628,7 @@ export default function App() {
       }
 
       // 7. Draw Face Features (Beard, Eyebrows, Makeup, Glasses, Memes, Characters)
-      if (selectedBeardColor !== 'transparent' || selectedEyebrowColor !== 'transparent' || selectedMeme !== 'none' || selectedGlasses !== 'none' || selectedMakeup !== 'none' || selectedCharacter !== 'none') {
+      if (needsFace) {
         const faceResults = faceLandmarker.detectForVideo(video, startTimeMs);
         if (faceResults.faceLandmarks) {
           for (const landmarks of faceResults.faceLandmarks) {
